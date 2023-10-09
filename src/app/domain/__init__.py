@@ -15,7 +15,7 @@ from app.domain.analytics.dtos import NewUsersByWeek
 from app.domain.tags.models import Tag
 from app.domain.teams.models import Team
 
-from . import accounts, analytics, openapi, plugins, security, system, tags, teams, urls, web
+from . import accounts, analytics, system, tags, teams, urls, web
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -43,11 +43,8 @@ __all__ = [
     "web",
     "urls",
     "tags",
-    "security",
     "routes",
-    "openapi",
     "analytics",
-    "plugins",
     "signature_namespace",
 ]
 

@@ -1,24 +1,27 @@
+from advanced_alchemy.extensions.litestar.plugins import SQLAlchemyPlugin
 from litestar.contrib.pydantic import PydanticPlugin
 from litestar_aiosql import AiosqlConfig, AiosqlPlugin
 from litestar_saq import CronJob, QueueConfig, SAQConfig, SAQPlugin
 from litestar_vite import ViteConfig, VitePlugin
 
+from app import config
+from app.config._settings import TEMPLATES_DIR, settings
 from app.domain.system import tasks
-from app.lib import settings
 
+sqlalchemy = SQLAlchemyPlugin(config=config.sqlalchemy)
 pydantic = PydanticPlugin(prefer_alias=True)
 aiosql = AiosqlPlugin(config=AiosqlConfig())
 vite = VitePlugin(
     config=ViteConfig(
-        static_dir=settings.STATIC_DIR,
-        templates_dir=settings.TEMPLATES_DIR,
-        hot_reload=settings.app.DEV_MODE,
+        static_dir=settings.APP_STATIC_DIR,
+        templates_dir=TEMPLATES_DIR,
+        hot_reload=settings.APP_DEV_MODE,
         port=3005,
     ),
 )
 saq = SAQPlugin(
     config=SAQConfig(
-        redis_url=settings.redis.URL,
+        redis_url=settings.REDIS_URL,
         web_enabled=True,
         worker_processes=1,
         queue_configs=[

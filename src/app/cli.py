@@ -11,10 +11,10 @@ from litestar import Litestar
 from pydantic import EmailStr
 from rich import get_console
 
-from app.domain import plugins
+from app.config import get_db_session, get_logger, plugins, settings
+from app.config import logs as logging_config
 from app.domain.accounts.dtos import UserCreate, UserUpdate
 from app.domain.accounts.services import UserService
-from app.lib import log, settings
 
 __all__ = [
     "create_user",
@@ -27,7 +27,7 @@ __all__ = [
 console = get_console()
 """Pre-configured CLI Console."""
 
-logger = log.get_logger()
+logger = get_logger()
 
 
 @click.group(name="serve", invoke_without_command=False, help="Run application services.")
@@ -51,7 +51,7 @@ def user_management_app(_: dict[str, Any]) -> None:
     "--host",
     help="Host interface to listen on.  Use 0.0.0.0 for all available interfaces.",
     type=click.STRING,
-    default=settings.server.HOST,
+    default=settings.SERVER_HOST,
     required=False,
     show_default=True,
 )
@@ -60,7 +60,7 @@ def user_management_app(_: dict[str, Any]) -> None:
     "--port",
     help="Port to bind.",
     type=click.INT,
-    default=settings.server.PORT,
+    default=settings.SERVER_PORT,
     required=False,
     show_default=True,
 )
@@ -76,7 +76,7 @@ def user_management_app(_: dict[str, Any]) -> None:
     "--worker-concurrency",
     help="The number of simultaneous jobs a worker process can execute.",
     type=click.IntRange(min=1),
-    default=settings.worker.CONCURRENCY,
+    default=settings.WORKER_CONCURRENCY,
     required=False,
     show_default=True,
 )
@@ -96,14 +96,14 @@ def run_all_app(
     """Run the API server."""
     from litestar_saq.cli import get_saq_plugin, run_worker_process
 
-    log.config.configure()
-    settings.server.HOST = host or settings.server.HOST
-    settings.server.PORT = port or settings.server.PORT
-    settings.server.RELOAD = reload or settings.server.RELOAD if settings.server.RELOAD is not None else None
-    settings.server.HTTP_WORKERS = http_workers or settings.server.HTTP_WORKERS
-    settings.worker.CONCURRENCY = worker_concurrency or settings.worker.CONCURRENCY
-    settings.app.DEBUG = debug or settings.app.DEBUG
-    settings.log.LEVEL = 10 if verbose or settings.app.DEBUG else settings.log.LEVEL
+    logging_config.configure()
+    settings.SERVER_HOST = host or settings.SERVER_HOST
+    settings.SERVER_PORT = port or settings.SERVER_PORT
+    settings.SERVER_RELOAD = reload or settings.SERVER_RELOAD if settings.SERVER_RELOAD is not None else None
+    settings.SERVER_HTTP_WORKERS = http_workers or settings.SERVER_HTTP_WORKERS
+    settings.WORKER_CONCURRENCY = worker_concurrency or settings.WORKER_CONCURRENCY
+    settings.APP_DEBUG = debug or settings.APP_DEBUG
+    settings.LOG_LEVEL = 10 if verbose or settings.APP_DEBUG else settings.LOG_LEVEL
     logger.info("starting all application services.")
     saq_plugin = get_saq_plugin(app)
 
@@ -115,27 +115,27 @@ def run_all_app(
         )
         worker_process.start()
 
-        if settings.app.DEV_MODE:
+        if settings.APP_DEV_MODE:
             logger.info("starting Vite")
             vite_process = multiprocessing.Process(target=run_vite)
             vite_process.start()
 
         logger.info("Starting HTTP Server.")
-        reload_dirs = settings.server.RELOAD_DIRS if settings.server.RELOAD else None
+        reload_dirs = settings.SERVER_RELOAD_DIRS if settings.SERVER_RELOAD else None
         process_args = {
-            "reload": bool(settings.server.RELOAD),
-            "host": settings.server.HOST,
-            "port": settings.server.PORT,
-            "workers": 1 if bool(settings.server.RELOAD or settings.app.DEV_MODE) else settings.server.HTTP_WORKERS,
-            "factory": settings.server.APP_LOC_IS_FACTORY,
+            "reload": bool(settings.SERVER_RELOAD),
+            "host": settings.SERVER_HOST,
+            "port": settings.SERVER_PORT,
+            "workers": 1 if bool(settings.SERVER_RELOAD or settings.APP_DEV_MODE) else settings.SERVER_HTTP_WORKERS,
+            "factory": settings.SERVER_APP_LOC_IS_FACTORY,
             "loop": "auto",
             "no-access-log": True,
-            "timeout-keep-alive": settings.server.KEEPALIVE,
+            "timeout-keep-alive": settings.SERVER_KEEPALIVE,
         }
         if reload_dirs:
             process_args["reload-dir"] = reload_dirs
         subprocess.run(
-            ["uvicorn", settings.server.APP_LOC, *_convert_uvicorn_args(process_args)],  # noqa: S607
+            ["uvicorn", settings.SERVER_APP_LOC, *_convert_uvicorn_args(process_args)],  # noqa: S607
             check=True,
         )
     finally:
@@ -196,8 +196,8 @@ def create_user(
             password=password,
             is_superuser=superuser,
         )
-
-        async with UserService.new() as users_service:
+        async with get_db_session() as db_session:
+            users_service = UserService(session=db_session)
             user = await users_service.create(data=obj_in.__dict__)
             await users_service.repository.session.commit()
             logger.info("User created: %s", user.email)
@@ -226,7 +226,8 @@ def promote_to_superuser(email: str) -> None:
     """
 
     async def _promote_to_superuser(email: str) -> None:
-        async with UserService.new() as users_service:
+        async with get_db_session() as db_session:
+            users_service = UserService(session=db_session)
             user = await users_service.get_one_or_none(email=email)
             if user:
                 logger.info("Promoting user: %s", user.email)
@@ -272,7 +273,7 @@ def run_vite() -> None:
 
 async def _run_vite() -> None:
     """Run Vite in a subprocess."""
-    log.config.configure()
+    logging_config.configure()
     async with await open_process(plugins.vite._config.run_command) as vite_process:
         async for text in TextReceiveStream(vite_process.stdout):  # type: ignore[arg-type]
             await logger.ainfo("Vite", message=text.replace("\n", ""))

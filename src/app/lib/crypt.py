@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import base64
-import logging
 
 from litestar.utils.sync import AsyncCallable
 from passlib.context import CryptContext
 from pydantic import SecretBytes, SecretStr
 
 __all__ = ["get_encryption_key", "get_password_hash", "verify_password"]
-
-
-logger = logging.getLogger()
 
 
 password_crypt_context = CryptContext(schemes=["argon2"], deprecated="auto")

@@ -14,29 +14,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.lib.serialization import _msgspec_json_encoder
-
-__all__ = ["EventFilter", "msgspec_json_renderer"]
+__all__ = ["EventFilter"]
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from structlog.typing import EventDict, WrappedLogger
-
-
-def msgspec_json_renderer(_: WrappedLogger, __: str, event_dict: EventDict) -> bytes:
-    """Structlog processor that uses `msgspec` for JSON encoding.
-
-    Args:
-        _ ():
-        __ ():
-        event_dict (): The data to be logged.
-
-    Returns:
-        The log event encoded to JSON by msgspec.
-    """
-    return _msgspec_json_encoder.encode(event_dict)
 
 
 class EventFilter:

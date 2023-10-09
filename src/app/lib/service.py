@@ -6,7 +6,6 @@ should be a SQLAlchemy model.
 
 from __future__ import annotations
 
-import contextlib
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, overload
 
@@ -20,14 +19,8 @@ from litestar.dto import DTOData
 from litestar.pagination import OffsetPagination
 from pydantic.type_adapter import TypeAdapter
 
-from app.lib.db import async_session_factory
-
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-
     from pydantic import BaseModel
-    from sqlalchemy import Select
-    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.sql import ColumnElement
 
 __all__ = ["SQLAlchemyAsyncRepositoryService"]
@@ -131,26 +124,3 @@ class SQLAlchemyAsyncRepositoryService(_SQLAlchemyAsyncRepositoryService[ModelT]
             offset=limit_offset.offset,
             total=total,
         )
-
-    @classmethod
-    @contextlib.asynccontextmanager
-    async def new(
-        cls: type[SQLAlchemyAsyncRepoServiceT],
-        session: AsyncSession | None = None,
-        statement: Select | None = None,
-    ) -> AsyncIterator[SQLAlchemyAsyncRepoServiceT]:
-        """Context manager that returns instance of service object.
-
-        Handles construction of the database session._create_select_for_model
-
-        Returns:
-            The service object instance.
-        """
-        if session:
-            yield cls(statement=statement, session=session)
-        else:
-            async with async_session_factory() as db_session:
-                yield cls(
-                    statement=statement,
-                    session=db_session,
-                )

@@ -6,9 +6,9 @@ from litestar import Controller, MediaType, get
 from litestar.response import Response
 from sqlalchemy import text
 
+from app.config import get_logger, redis
 from app.domain.system.dtos import SystemHealth
-from app.lib import constants, log
-from app.lib.cache import redis
+from app.lib import constants
 
 if TYPE_CHECKING:
     from litestar_saq import Queue
@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 __all__ = ["SystemController"]
 
 
-logger = log.get_logger()
-
 OnlineOffline = TypeVar("OnlineOffline", bound=Literal["online", "offline"])
+
+logger = get_logger()
 
 
 class SystemController(Controller):

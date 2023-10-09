@@ -18,7 +18,7 @@ from litestar import Litestar, get
 from litestar.params import Dependency
 from litestar.testing import RequestFactory, TestClient
 
-from app.domain import security
+from app.config import security
 from app.domain.accounts.models import User
 from app.lib import dependencies
 

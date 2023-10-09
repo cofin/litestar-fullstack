@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.lib import dto
-from app.lib.db import orm
+from app.lib import dto, orm
 
 if TYPE_CHECKING:
     from app.domain.teams.models import TeamMember

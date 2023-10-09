@@ -16,22 +16,8 @@ from pydantic_settings import (
 
 from app import utils
 
-__all__ = [
-    "DatabaseSettings",
-    "AppSettings",
-    "OpenAPISettings",
-    "RedisSettings",
-    "LogSettings",
-    "WorkerSettings",
-    "ServerSettings",
-    "app",
-    "db",
-    "openapi",
-    "redis",
-    "server",
-    "log",
-    "worker",
-]
+__all__ = ["Settings", "load_settings"]
+
 
 DEFAULT_MODULE_NAME = "app"
 BASE_DIR: Final = utils.module_to_os_path(DEFAULT_MODULE_NAME)
@@ -40,87 +26,65 @@ TEMPLATES_DIR = Path(BASE_DIR / "domain" / "web" / "templates")
 version = importlib.metadata.version(DEFAULT_MODULE_NAME)
 
 
-class ServerSettings(BaseSettings):
+class Settings(BaseSettings):
     """Server configurations."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        env_prefix="SERVER_",
         case_sensitive=False,
     )
 
-    APP_LOC: str = "app.asgi:create_app"
+    SERVER_APP_LOC: str = "app.asgi:create_app"
     """Path to app executable, or factory."""
-    APP_LOC_IS_FACTORY: bool = True
+    SERVER_APP_LOC_IS_FACTORY: bool = True
     """Indicate if APP_LOC points to an executable or factory."""
-    HOST: str = "localhost"
+    SERVER_HOST: str = "localhost"
     """Server network host."""
-    KEEPALIVE: int = 65
+    SERVER_KEEPALIVE: int = 65
     """Seconds to hold connections open (65 is > AWS lb idle timeout)."""
-    PORT: int = 8000
+    SERVER_PORT: int = 8000
     """Server port."""
-    RELOAD: bool | None = None
+    SERVER_RELOAD: bool | None = None
     """Turn on hot reloading."""
-    RELOAD_DIRS: list[str] = [f"{BASE_DIR}"]
+    SERVER_RELOAD_DIRS: list[str] = [f"{BASE_DIR}"]
     """Directories to watch for reloading."""
-    HTTP_WORKERS: int | None = None
+    SERVER_HTTP_WORKERS: int | None = None
     """Number of HTTP Worker processes to be spawned by Uvicorn."""
 
-
-class AppSettings(BaseSettings):
-    """Generic application settings.
-
-    These settings are returned as json by the healthcheck endpoint, so
-    do not include any sensitive values here, or if you do ensure to
-    exclude them from serialization in the `model_config` object.
     """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="APP_",
-        case_sensitive=False,
-    )
+    APP
 
-    BUILD_NUMBER: str = ""
+    """
+
+    APP_BUILD_NUMBER: str = ""
     """Identifier for CI build."""
-    DEBUG: bool = False
+    APP_DEBUG: bool = False
     """Run `Litestar` with `debug=True`."""
-    ENVIRONMENT: str = "prod"
+    APP_ENVIRONMENT: str = "prod"
     """'dev', 'prod', etc."""
-    TEST_ENVIRONMENT_NAME: str = "test"
-    """Value of ENVIRONMENT used to determine if running tests.
-
-    This should be the value of `ENVIRONMENT` in `tests.env`.
-    """
-    LOCAL_ENVIRONMENT_NAME: str = "local"
-    """Value of ENVIRONMENT used to determine if running in local development
-    mode.
-
-    This should be the value of `ENVIRONMENT` in your local `.env` file.
-    """
-    NAME: str = "app"
+    APP_NAME: str = "app"
     """Application name."""
-    SECRET_KEY: str
+    APP_SECRET_KEY: str
     """Number of HTTP Worker processes to be spawned by Uvicorn."""
-    JWT_ENCRYPTION_ALGORITHM: str = "HS256"
-    BACKEND_CORS_ORIGINS: list[str] = ["*"]
-    STATIC_URL: str = "/static/"
-    CSRF_COOKIE_NAME: str = "csrftoken"
-    CSRF_COOKIE_SECURE: bool = False
+    APP_JWT_ENCRYPTION_ALGORITHM: str = "HS256"
+    APP_BACKEND_CORS_ORIGINS: list[str] = ["*"]
+    APP_STATIC_URL: str = "/static/"
+    APP_CSRF_COOKIE_NAME: str = "csrftoken"
+    APP_CSRF_COOKIE_SECURE: bool = False
     """Default URL where static assets are located."""
-    STATIC_DIR: Path = STATIC_DIR
-    DEV_MODE: bool = False
+    APP_STATIC_DIR: Path = STATIC_DIR
+    APP_DEV_MODE: bool = False
 
     @property
-    def slug(self) -> str:
+    def app_slug(self) -> str:
         """Return a slugified name.
 
         Returns:
             `self.NAME`, all lowercase and hyphens instead of spaces.
         """
-        return utils.slugify(self.NAME)
+        return utils.slugify(self.APP_NAME)
 
     @field_validator("BACKEND_CORS_ORIGINS")
     def assemble_cors_origins(
@@ -144,29 +108,28 @@ class AppSettings(BaseSettings):
         """Generate a secret key."""
         return os.urandom(32).decode() if value is None else value
 
+    """
 
-class LogSettings(BaseSettings):
-    """Logging config for the application."""
+    LOGGING
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", env_prefix="LOG_")
-
+    """
     # https://stackoverflow.com/a/1845097/6560549
-    EXCLUDE_PATHS: str = r"\A(?!x)x"
+    LOG_EXCLUDE_PATHS: str = r"\A(?!x)x"
     """Regex to exclude paths from logging."""
-    HTTP_EVENT: str = "HTTP"
+    LOG_HTTP_EVENT: str = "HTTP"
     """Log event name for logs from Litestar handlers."""
-    INCLUDE_COMPRESSED_BODY: bool = False
+    LOG_INCLUDE_COMPRESSED_BODY: bool = False
     """Include 'body' of compressed responses in log output."""
-    LEVEL: int = 20
+    LOG_LEVEL: int = 20
     """Stdlib log levels.
 
     Only emit logs at this level, or higher.
     """
-    OBFUSCATE_COOKIES: set[str] = {"session"}
+    LOG_OBFUSCATE_COOKIES: set[str] = {"session"}
     """Request cookie keys to obfuscate."""
-    OBFUSCATE_HEADERS: set[str] = {"Authorization", "X-API-KEY"}
+    LOG_OBFUSCATE_HEADERS: set[str] = {"Authorization", "X-API-KEY"}
     """Request header keys to obfuscate."""
-    JOB_FIELDS: list[str] = [
+    LOG_JOB_FIELDS: list[str] = [
         "function",
         "kwargs",
         "key",
@@ -183,150 +146,118 @@ class LogSettings(BaseSettings):
     [`Job`](https://github.com/tobymao/saq/blob/master/saq/job.py) to be
     logged.
     """
-    REQUEST_FIELDS: list[RequestExtractorField] = [
+    LOG_LOG_REQUEST_FIELDS: list[RequestExtractorField] = [
         "path",
         "method",
         "headers",
         "cookies",
         "query",
         "path_params",
-        "body",
     ]
     """Attributes of the [Request][litestar.connection.request.Request] to be
     logged."""
-    RESPONSE_FIELDS: list[ResponseExtractorField] = [
+    LOG_RESPONSE_FIELDS: list[ResponseExtractorField] = [
         "status_code",
         "cookies",
         "headers",
-        "body",
     ]
     """Attributes of the [Response][litestar.response.Response] to be
     logged."""
-    WORKER_EVENT: str = "Worker"
+    LOG_WORKER_EVENT: str = "Worker"
     """Log event name for logs from SAQ worker."""
-    SAQ_LEVEL: int = 20
+    LOG_SAQ_LEVEL: int = 20
     """Level to log SAQ logs."""
-    SQLALCHEMY_LEVEL: int = 30
+    LOG_SQLALCHEMY_LEVEL: int = 30
     """Level to log SQLAlchemy logs."""
-    UVICORN_ACCESS_LEVEL: int = 30
+    LOG_UVICORN_ACCESS_LEVEL: int = 30
     """Level to log uvicorn access logs."""
-    UVICORN_ERROR_LEVEL: int = 20
+    LOG_UVICORN_ERROR_LEVEL: int = 20
     """Level to log uvicorn error logs."""
 
+    """
 
-# noinspection PyUnresolvedReferences
-class OpenAPISettings(BaseSettings):
-    """Configures OpenAPI for the application."""
+    OPENAPI
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="OPENAPI_",
-        case_sensitive=False,
-    )
-
-    CONTACT_NAME: str = "Cody"
+    """
+    OPENAPI_CONTACT_NAME: str = "Cody"
     """Name of contact on document."""
-    CONTACT_EMAIL: str = "admin"
+    OPENAPI_CONTACT_EMAIL: str = "admin"
     """Email for contact on document."""
-    TITLE: str | None = "Litestar Fullstack"
+    OPENAPI_TITLE: str | None = "Litestar Fullstack"
     """Document title."""
-    VERSION: str = f"v{version}"
+    OPENAPI_VERSION: str = f"v{version}"
     """Document version."""
+    """
 
+    WORKER
 
-class WorkerSettings(BaseSettings):
-    """Global SAQ Job configuration."""
+    """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="WORKER_",
-        case_sensitive=False,
-    )
-
-    CONCURRENCY: int = 10
+    WORKER_CONCURRENCY: int = 10
     """The number of concurrent jobs allowed to execute per worker.
 
     Default is set to 10.
     """
-    WEB_ENABLED: bool = True
+    WORKER_WEB_ENABLED: bool = True
     """If true, the worker admin UI is launched on worker startup.."""
     """Initialization method for the worker process."""
 
+    """
 
-class DatabaseSettings(BaseSettings):
-    """Configures the database for the application."""
+    DATABASE
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="DB_",
-        case_sensitive=False,
-    )
-
-    ECHO: bool = False
+    """
+    DB_ECHO: bool = False
     """Enable SQLAlchemy engine logs."""
-    ECHO_POOL: bool | Literal["debug"] = False
+    DB_ECHO_POOL: bool | Literal["debug"] = False
     """Enable SQLAlchemy connection pool logs."""
-    POOL_DISABLE: bool = False
+    DB_POOL_DISABLE: bool = False
     """Disable SQLAlchemy pooling, same as setting pool to.
 
     [`NullPool`][sqlalchemy.pool.NullPool].
     """
-    POOL_MAX_OVERFLOW: int = 10
+    DB_POOL_MAX_OVERFLOW: int = 10
     """See [`max_overflow`][sqlalchemy.pool.QueuePool]."""
-    POOL_SIZE: int = 5
+    DB_POOL_SIZE: int = 5
     """See [`pool_size`][sqlalchemy.pool.QueuePool]."""
-    POOL_TIMEOUT: int = 30
+    DB_POOL_TIMEOUT: int = 30
     """See [`timeout`][sqlalchemy.pool.QueuePool]."""
-    POOL_RECYCLE: int = 300
-    POOL_PRE_PING: bool = False
-    CONNECT_ARGS: dict[str, Any] = {}
-    URL: str = "postgresql+asyncpg://postgres:mysecretpassword@localhost:5432/postgres"
-    ENGINE: str | None = None
-    USER: str | None = None
-    PASSWORD: str | None = None
-    HOST: str | None = None
-    PORT: int | None = None
-    NAME: str | None = None
-    MIGRATION_CONFIG: str = f"{BASE_DIR}/lib/db/alembic.ini"
-    MIGRATION_PATH: str = f"{BASE_DIR}/lib/db/migrations"
-    MIGRATION_DDL_VERSION_TABLE: str = "ddl_version"
+    DB_POOL_RECYCLE: int = 300
+    DB_POOL_PRE_PING: bool = False
+    DB_CONNECT_ARGS: dict[str, Any] = {}
+    DB_URL: str = "postgresql+asyncpg://postgres:mysecretpassword@localhost:5432/postgres"
+    DB_ENGINE: str | None = None
+    DB_USER: str | None = None
+    DB_PASSWORD: str | None = None
+    DB_HOST: str | None = None
+    DB_PORT: int | None = None
+    DB_NAME: str | None = None
+    DB_MIGRATION_CONFIG: str = f"{BASE_DIR}/config/alembic.ini"
+    DB_MIGRATION_PATH: str = f"{BASE_DIR}/config/migrations"
+    DB_MIGRATION_DDL_VERSION_TABLE: str = "ddl_version"
 
+    """
 
-class RedisSettings(BaseSettings):
-    """Redis settings for the application."""
+    REDIS
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", env_prefix="REDIS_")
-
-    URL: str = "redis://localhost:6379/0"
+    """
+    REDIS_URL: str = "redis://localhost:6379/0"
     """A Redis connection URL."""
-    DB: int | None = None
+    REDIS_DB: int | None = None
     """Redis DB ID (optional)"""
-    PORT: int | None = None
+    REDIS_PORT: int | None = None
     """Redis port (optional)"""
-    SOCKET_CONNECT_TIMEOUT: int = 5
+    REDIS_SOCKET_CONNECT_TIMEOUT: int = 5
     """Length of time to wait (in seconds) for a connection to become
     active."""
-    HEALTH_CHECK_INTERVAL: int = 5
+    REDIS_HEALTH_CHECK_INTERVAL: int = 5
     """Length of time to wait (in seconds) before testing connection health."""
-    SOCKET_KEEPALIVE: int = 5
+    REDIS_SOCKET_KEEPALIVE: int = 5
     """Length of time to wait (in seconds) between keepalive commands."""
 
 
 @lru_cache
-def load_settings() -> (
-    tuple[
-        AppSettings,
-        RedisSettings,
-        DatabaseSettings,
-        OpenAPISettings,
-        ServerSettings,
-        LogSettings,
-        WorkerSettings,
-    ]
-):
+def load_settings() -> Settings:
     """Load Settings file.
 
     As an example, I've commented out how you might go about injecting secrets into the environment for production.
@@ -361,37 +292,12 @@ def load_settings() -> (
         load_dotenv(env_file)
     try:
         """Override Application reload dir."""
-        server: ServerSettings = ServerSettings(
-            HOST="0.0.0.0",  # noqa: S104
-            RELOAD_DIRS=[str(BASE_DIR)],
+        settings: Settings = Settings(
+            SERVER_HOST="0.0.0.0",  # noqa: S104
+            SERVER_RELOAD_DIRS=[str(BASE_DIR)],
         )
-        app: AppSettings = AppSettings()
-        redis: RedisSettings = RedisSettings()
-        db: DatabaseSettings = DatabaseSettings()
-        openapi: OpenAPISettings = OpenAPISettings()
-        log: LogSettings = LogSettings()
-        worker: WorkerSettings = WorkerSettings()
 
     except ValidationError as e:
         print("Could not load settings.", e)  # noqa: T201
         raise
-    return (
-        app,
-        redis,
-        db,
-        openapi,
-        server,
-        log,
-        worker,
-    )
-
-
-(
-    app,
-    redis,
-    db,
-    openapi,
-    server,
-    log,
-    worker,
-) = load_settings()
+    return settings

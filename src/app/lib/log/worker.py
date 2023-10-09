@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from app.lib import settings
+from app.config import settings
 
 __all__ = ["after_process", "before_process", "on_shutdown", "on_startup"]
 
@@ -40,11 +40,11 @@ async def after_process(ctx: Context) -> None:
     """Parse log context and log it along with the contextvars context."""
     # parse log context from `ctx`
     job: Job = ctx["job"]
-    log_ctx = {k: getattr(job, k) for k in settings.log.JOB_FIELDS}
+    log_ctx = {k: getattr(job, k) for k in settings.LOG_JOB_FIELDS}
     # add duration measures
     log_ctx["pickup_time_ms"] = job.started - job.queued
     log_ctx["completed_time_ms"] = job.completed - job.started
     log_ctx["total_time_ms"] = job.completed - job.queued
     # emit the log
     level = logging.ERROR if job.error else logging.INFO
-    await LOGGER.alog(level, settings.log.WORKER_EVENT, **log_ctx)
+    await LOGGER.alog(level, settings.LOG_WORKER_EVENT, **log_ctx)

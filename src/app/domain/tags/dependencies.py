@@ -16,7 +16,7 @@ __all__ = ["provide_tags_service"]
 
 
 async def provide_tags_service(
-    db_session: AsyncSession | None = None,
+    db_session: AsyncSession,
 ) -> AsyncGenerator[TagService, None]:
     """Provide Tags service.
 
@@ -26,5 +26,4 @@ async def provide_tags_service(
     Returns:
         TagService: An Tags service object
     """
-    async with TagService.new(session=db_session, statement=select(Tag)) as service:
-        yield service
+    yield TagService(session=db_session, statement=select(Tag))

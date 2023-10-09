@@ -9,7 +9,8 @@ from litestar.di import Provide
 from litestar.enums import RequestEncodingType
 from litestar.params import Body
 
-from app.domain import security, urls
+from app.config import security
+from app.domain import urls
 from app.domain.accounts.dependencies import provides_user_service
 from app.domain.accounts.dtos import AccountLogin, AccountLoginDTO, AccountRegister, AccountRegisterDTO, UserDTO
 from app.domain.accounts.guards import requires_active_user

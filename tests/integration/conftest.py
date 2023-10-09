@@ -13,8 +13,8 @@ from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.config.security import auth
 from app.domain.accounts.models import User
-from app.domain.security import auth
 from app.domain.teams.models import Team
 from app.lib import db
 from tests.docker_service import DockerServiceRegistry, postgres_responsive, redis_responsive
@@ -104,16 +104,18 @@ async def _seed_db(
 
     from app.domain.accounts.services import UserService
     from app.domain.teams.services import TeamService
-    from app.lib.db import orm  # pylint: disable=[import-outside-toplevel,unused-import]
+    from app.lib import orm  # pylint: disable=[import-outside-toplevel,unused-import]
 
     metadata = orm.DatabaseModel.registry.metadata
     async with engine.begin() as conn:
         await conn.run_sync(metadata.drop_all)
         await conn.run_sync(metadata.create_all)
-    async with UserService.new(sessionmaker()) as users_service:
+    async with sessionmaker() as db_session:
+        users_service = UserService(session=db_session)
         await users_service.create_many(raw_users)
         await users_service.repository.session.commit()
-    async with TeamService.new(sessionmaker()) as teams_services:
+    async with sessionmaker() as db_session:
+        teams_services = TeamService(session=db_session)
         for raw_team in raw_teams:
             await teams_services.create(raw_team)
         await teams_services.repository.session.commit()

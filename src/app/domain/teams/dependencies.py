@@ -8,7 +8,6 @@ from sqlalchemy.orm import joinedload, noload, selectinload
 
 from app.domain.teams.models import Team, TeamInvitation, TeamMember
 from app.domain.teams.services import TeamInvitationService, TeamMemberService, TeamService
-from app.lib import log
 
 __all__ = ["provide_team_members_service", "provides_teams_service", "provide_team_invitations_service"]
 
@@ -18,12 +17,10 @@ if TYPE_CHECKING:
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = log.get_logger()
-
 
 async def provides_teams_service(db_session: AsyncSession) -> AsyncGenerator[TeamService, None]:
     """Construct repository and service objects for the request."""
-    async with TeamService.new(
+    yield TeamService(
         session=db_session,
         statement=select(Team)
         .order_by(Team.name)
@@ -33,40 +30,28 @@ async def provides_teams_service(db_session: AsyncSession) -> AsyncGenerator[Tea
                 joinedload(TeamMember.user, innerjoin=True).options(noload("*")),
             ),
         ),
-    ) as service:
-        try:
-            yield service
-        finally:
-            ...
+    )
 
 
 async def provide_team_members_service(db_session: AsyncSession) -> AsyncGenerator[TeamMemberService, None]:
     """Construct repository and service objects for the request."""
-    async with TeamMemberService.new(
+    yield TeamMemberService(
         session=db_session,
         statement=select(TeamMember).options(
             noload("*"),
             joinedload(TeamMember.team, innerjoin=True).options(noload("*")),
             joinedload(TeamMember.user, innerjoin=True).options(noload("*")),
         ),
-    ) as service:
-        try:
-            yield service
-        finally:
-            ...
+    )
 
 
 async def provide_team_invitations_service(db_session: AsyncSession) -> AsyncGenerator[TeamInvitationService, None]:
     """Construct repository and service objects for the request."""
-    async with TeamInvitationService.new(
+    yield TeamInvitationService(
         session=db_session,
         statement=select(TeamInvitation).options(
             noload("*"),
             joinedload(TeamInvitation.team, innerjoin=True).options(noload("*")),
             joinedload(TeamInvitation.invited_by, innerjoin=True).options(noload("*")),
         ),
-    ) as service:
-        try:
-            yield service
-        finally:
-            ...
+    )

@@ -19,7 +19,8 @@ from litestar.testing import RequestFactory
 from litestar.utils.scope import set_litestar_scope_state
 from structlog import DropEvent
 
-from app.lib import constants, log, settings
+from app.config import settings
+from app.lib import constants, log
 
 if TYPE_CHECKING:
     from typing import Any
@@ -49,7 +50,7 @@ def test_drop_health_logs_raises_structlog_drop_event() -> None:
             None,
             "abc",
             {
-                "event": settings.log.HTTP_EVENT,
+                "event": settings.LOG_HTTP_EVENT,
                 "request": {"path": constants.SYSTEM_HEALTH},
                 "response": {"status_code": HTTP_200_OK},
             },
@@ -59,7 +60,7 @@ def test_drop_health_logs_raises_structlog_drop_event() -> None:
 def test_drop_health_log_no_drop_event_if_not_success_status() -> None:
     """Healthcheck should be logged if it fails."""
     event_dict = {
-        "event": settings.log.HTTP_EVENT,
+        "event": settings.LOG_HTTP_EVENT,
         "request": {"path": constants.SYSTEM_HEALTH},
         "response": {"status_code": HTTP_500_INTERNAL_SERVER_ERROR},
     }
@@ -269,8 +270,8 @@ async def test_before_send_handler_exclude_body_from_log(
     monkeypatch: MonkeyPatch,
 ) -> None:
     """Check inclusion/exclusion of 'body' key in `log_response()."""
-    if "body" not in settings.log.RESPONSE_FIELDS:
-        settings.log.RESPONSE_FIELDS.append("body")
+    if "body" not in settings.LOG_RESPONSE_FIELDS:
+        settings.LOG_RESPONSE_FIELDS.append("body")
     set_litestar_scope_state(http_scope, SCOPE_STATE_RESPONSE_COMPRESSED, True)
     ret_val = {"body": "something random here."}
     extractor_mock = MagicMock(return_value=ret_val)
@@ -290,8 +291,8 @@ async def test_before_send_handler_extract_request_data(
     before_send_handler: log.controller.BeforeSendHandler,
 ) -> None:
     """I/O test for extract_request_data() method."""
-    if "body" not in settings.log.RESPONSE_FIELDS:
-        settings.log.RESPONSE_FIELDS.append("body")
+    if "body" not in settings.LOG_RESPONSE_FIELDS:
+        settings.LOG_RESPONSE_FIELDS.append("body")
     request = RequestFactory().post("/", data={"a": "b"})
     data = await before_send_handler.extract_request_data(request)
     assert data == {
@@ -362,8 +363,8 @@ async def test_exception_in_before_send_handler_read_empty_body(
     Test we handle errors originating from trying to log a request in the
     before-send handler.
     """
-    if "body" not in settings.log.RESPONSE_FIELDS:
-        settings.log.RESPONSE_FIELDS.append("body")
+    if "body" not in settings.LOG_RESPONSE_FIELDS:
+        settings.LOG_RESPONSE_FIELDS.append("body")
 
     @post(path="/1/2/3/4", media_type="text/plain", opt={"exclude_from_auth": True})
     async def test_handler() -> str:
@@ -379,7 +380,7 @@ async def test_exception_in_before_send_handler_read_empty_body(
     call = cap_logger.calls[0]
     assert call.method_name == "info"
     assert call.kwargs["event"] == "HTTP"
-    assert bool("body" not in call.kwargs["request"] or getattr(call.kwargs["request"], "body", None) is None)
+    assert "body" not in call.kwargs["request"] or getattr(call.kwargs["request"], "body", None) is None
     assert call.kwargs["level"] == "info"
 
 
@@ -390,8 +391,8 @@ async def test_log_request_with_invalid_json_payload(client: TestClient[Litestar
     parsable, so we need to make sure that the logging doesn't also
     fail due to attempting to parse the invalid payload.
     """
-    if "body" not in settings.log.RESPONSE_FIELDS:
-        settings.log.RESPONSE_FIELDS.append("body")
+    if "body" not in settings.LOG_RESPONSE_FIELDS:
+        settings.LOG_RESPONSE_FIELDS.append("body")
 
     @post(opt={"exclude_from_auth": True})
     async def test_handler(data: dict[str, Any]) -> dict[str, Any]:

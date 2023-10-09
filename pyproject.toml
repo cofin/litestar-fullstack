@@ -72,7 +72,7 @@ include = [
   "CHANGELOG.md",
   "src/app/domain/web/public/**/*",
   "src/app/**/*.sql",
-  "src/app/lib/db/**/*.ini",
+  "src/app/config/**/*.ini",
 ]
 packages = ["src/app"]
 
@@ -191,7 +191,7 @@ exclude = [
   "node_modules",
   "venv",
   '__pycache__',
-  "src/app/lib/db/migrations/versions/*.py",
+  "src/app/config/migrations/versions/*.py",
 ]
 fix = true
 ignore = [
@@ -322,7 +322,7 @@ module = ["sqlalchemy.*", "saq.*", "uvicorn.*", "aiohttp.*", "jsbeautifier", "js
 
 [[tool.mypy.overrides]]
 ignore_errors = true
-module = ["app.lib.db.migrations.*", "app.lib.dto.*"]
+module = ["app.config.migrations.*", "app.lib.dto.*"]
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

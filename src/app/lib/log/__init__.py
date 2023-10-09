@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 from typing import TYPE_CHECKING
 
 import structlog
-from litestar.logging.config import LoggingConfig
-
-from app.lib import settings
 
 from . import controller, worker
 from .utils import EventFilter, msgspec_json_renderer
@@ -23,7 +19,6 @@ if TYPE_CHECKING:
 
 __all__ = (
     "default_processors",
-    "config",
     "configure",
     "controller",
     "worker",
@@ -58,7 +53,7 @@ else:
     default_processors.extend([msgspec_json_renderer])
 
 
-def configure(processors: Sequence[Processor]) -> None:
+def configure(processors: Sequence[Processor], log_level: int = 30) -> None:
     """Call to configure `structlog` on app startup.
 
     The calls to `structlog.get_logger()` in `controller.py` and
@@ -70,57 +65,5 @@ def configure(processors: Sequence[Processor]) -> None:
         cache_logger_on_first_use=True,
         logger_factory=LoggerFactory(),
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(settings.log.LEVEL),
+        wrapper_class=structlog.make_filtering_bound_logger(log_level),
     )
-
-
-config = LoggingConfig(
-    root={"level": logging.getLevelName(settings.log.LEVEL), "handlers": ["queue_listener"]},
-    formatters={
-        "standard": {"()": structlog.stdlib.ProcessorFormatter, "processors": stdlib_processors},
-    },
-    loggers={
-        "uvicorn.access": {
-            "propagate": False,
-            "level": settings.log.UVICORN_ACCESS_LEVEL,
-            "handlers": ["queue_listener"],
-        },
-        "uvicorn.error": {
-            "propagate": False,
-            "level": settings.log.UVICORN_ERROR_LEVEL,
-            "handlers": ["queue_listener"],
-        },
-        "saq": {
-            "propagate": False,
-            "level": settings.log.SAQ_LEVEL,
-            "handlers": ["queue_listener"],
-        },
-        "sqlalchemy.engine": {
-            "propagate": False,
-            "level": settings.log.SQLALCHEMY_LEVEL,
-            "handlers": ["queue_listener"],
-        },
-        "sqlalchemy.pool": {
-            "propagate": False,
-            "level": settings.log.SQLALCHEMY_LEVEL,
-            "handlers": ["queue_listener"],
-        },
-    },
-)
-"""Pre-configured log config for application deps.
-
-While we use structlog for internal app logging, we still want to ensure
-that logs emitted by any of our dependencies are handled in a non-
-blocking manner.
-"""
-
-
-def get_logger(*args: Any, **kwargs: Any) -> BoundLogger:
-    """Return a configured logger for the given name.
-
-    Returns:
-        Logger: A configured logger instance
-    """
-    config.configure()
-    configure(default_processors)  # type: ignore[arg-type]
-    return structlog.getLogger(*args, **kwargs)  # type: ignore

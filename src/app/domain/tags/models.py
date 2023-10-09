@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.lib.db.orm import TimestampedDatabaseModel
+from app.lib.orm import TimestampedDatabaseModel
 
 if TYPE_CHECKING:
     from app.domain.teams.models import Team

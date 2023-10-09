@@ -7,11 +7,11 @@ from litestar import Controller, delete, get, patch, post
 from litestar.di import Provide
 from litestar.params import Dependency, Parameter
 
+from app.config import get_logger
 from app.domain import urls
 from app.domain.accounts.dependencies import provides_user_service
 from app.domain.accounts.dtos import UserCreate, UserCreateDTO, UserDTO, UserUpdate, UserUpdateDTO
 from app.domain.accounts.guards import requires_superuser
-from app.lib import log
 
 __all__ = ["AccountController"]
 
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from app.domain.accounts.services import UserService
 
 
-logger = log.get_logger()
+logger = get_logger()
 
 
 class AccountController(Controller):

@@ -18,43 +18,44 @@ def create_app() -> Litestar:
     from litestar.di import Provide
     from litestar.stores.registry import StoreRegistry
 
-    from app import domain
-    from app.domain.security import provide_user
+    from app import config, domain
+    from app.config import plugins, security, settings
     from app.lib import (
-        cache,
         constants,
-        cors,
-        db,
         exceptions,
         log,
         repository,
-        settings,
-        static_files,
     )
     from app.lib.dependencies import create_collection_dependencies
 
-    dependencies = {constants.USER_DEPENDENCY_KEY: Provide(provide_user)}
+    dependencies = {constants.USER_DEPENDENCY_KEY: Provide(security.provide_user)}
     dependencies.update(create_collection_dependencies())
 
     return Litestar(
-        response_cache_config=cache.config,
-        stores=StoreRegistry(default_factory=cache.redis_store_factory),
-        cors_config=cors.config,
+        response_cache_config=config.cache,
+        stores=StoreRegistry(default_factory=config.redis_store_factory),
+        cors_config=config.cors,
         dependencies=dependencies,
         exception_handlers={
             exceptions.ApplicationError: exceptions.exception_to_http_response,  # type: ignore[dict-item]
         },
-        debug=settings.app.DEBUG,
+        debug=settings.APP_DEBUG,
         before_send=[log.controller.BeforeSendHandler()],
         middleware=[log.controller.middleware_factory],
-        logging_config=log.config,
-        openapi_config=domain.openapi.config,
+        logging_config=config.logs,
+        openapi_config=config.openapi,
         route_handlers=[*domain.routes],
-        plugins=[db.plugin, domain.plugins.aiosql, domain.plugins.vite, domain.plugins.saq, domain.plugins.pydantic],
-        on_shutdown=[cache.redis.aclose],
+        plugins=[
+            plugins.sqlalchemy,
+            plugins.aiosql,
+            plugins.vite,
+            plugins.saq,
+            plugins.pydantic,
+        ],
+        on_shutdown=[config.redis.aclose],
         on_startup=[lambda: log.configure(log.default_processors)],  # type: ignore[arg-type]
-        on_app_init=[domain.security.auth.on_app_init, repository.on_app_init],
-        static_files_config=static_files.config,
+        on_app_init=[security.auth.on_app_init, repository.on_app_init],
+        static_files_config=config.static_files,
         signature_namespace=domain.signature_namespace,
         experimental_features=[ExperimentalFeatures.DTO_CODEGEN],
     )
