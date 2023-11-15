@@ -65,7 +65,7 @@ services:
       - .env.example
   worker:
     image: app:latest
-    command: wait-for-redis && litestar workers run
+    command: litestar workers run
     restart: always
     env_file:
       - .env.example
